@@ -2,89 +2,107 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>Điều khiển ESP32</title>
+  <title>ESP32 Dashboard</title>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <style>
     body {
-      font-family: 'Segoe UI', sans-serif;
+      font-family: sans-serif;
       background: #f0f4f8;
       text-align: center;
       padding: 40px;
     }
 
-    h2 {
+    h2, h3 {
       color: #333;
       margin-bottom: 20px;
     }
 
-    .btn {
-      padding: 15px 30px;
-      margin: 10px;
+    .gauge {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      margin: auto;
+      border: 10px solid #ddd;
+      border-radius: 50%;
+      background: #fff;
+    }
+
+    .needle {
+      position: absolute;
+      width: 4px;
+      height: 90px;
+      background: red;
+      top: 10px;
+      left: 98px;
+      transform-origin: bottom center;
+      transition: transform 0.3s ease;
+    }
+
+    .center-dot {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background: #333;
+      border-radius: 50%;
+      top: 94px;
+      left: 94px;
+    }
+
+    .ticks {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+    }
+
+    .tick {
+      position: absolute;
+      width: 2px;
+      height: 10px;
+      background: #333;
+      top: 0;
+      left: 99px;
+      transform-origin: bottom center;
+    }
+
+    #potValue, #buttonState {
+      margin-top: 20px;
       font-size: 18px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: 0.3s;
-    }
-
-    .btn-on {
-      background-color: #4CAF50;
-      color: white;
-    }
-
-    .btn-on:hover {
-      background-color: #45a049;
-    }
-
-    .btn-off {
-      background-color: #f44336;
-      color: white;
-    }
-
-    .btn-off:hover {
-      background-color: #da190b;
-    }
-
-    .status-box {
-      margin-top: 30px;
-      padding: 20px;
-      background: white;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      display: inline-block;
-    }
-
-    .status-label {
-      font-size: 20px;
       color: #555;
     }
 
-    .status-value {
-      font-size: 24px;
-      font-weight: bold;
-      margin-top: 10px;
-      color: #2196F3;
+    #ledToggleBtn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
     }
 
-    @media (max-width: 600px) {
-      .btn {
-        width: 80%;
-        font-size: 16px;
-      }
+    #ledToggleBtn:hover {
+      background: #0056b3;
     }
   </style>
 </head>
 <body>
-  <h2>🔧 Điều khiển ESP32 qua Firebase</h2>
-
-  <button class="btn btn-on" onclick="setLED(true)">💡 BẬT LED</button>
-  <button class="btn btn-off" onclick="setLED(false)">💤 TẮT LED</button>
-
-  <div class="status-box">
-    <div class="status-label">📲 Trạng thái nút nhấn trên ESP32:</div>
-    <div id="buttonStatus" class="status-value">Đang tải...</div>
+  <h2>🎛️ Biến trở ESP32</h2>
+  <div class="gauge">
+    <div class="ticks" id="tickContainer"></div>
+    <div class="needle" id="needle"></div>
+    <div class="center-dot"></div>
   </div>
+  <div id="potValue">Giá trị: --</div>
+
+  <h3>🔘 Nút nhấn ESP32</h3>
+  <div id="buttonState">Trạng thái: --</div>
+
+  <h3>💡 Điều khiển LED</h3>
+  <button id="ledToggleBtn">Bật LED</button>
 
   <script>
     const firebaseConfig = {
@@ -101,15 +119,47 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    function setLED(state) {
-      db.ref("/led/status").set(state);
+    const needle = document.getElementById("needle");
+    const potValueText = document.getElementById("potValue");
+    const buttonStateText = document.getElementById("buttonState");
+    const ledToggleBtn = document.getElementById("ledToggleBtn");
+
+    // Vẽ vạch chia độ
+    const tickContainer = document.getElementById("tickContainer");
+    for (let i = 0; i <= 270; i += 10) {
+      const tick = document.createElement("div");
+      tick.className = "tick";
+      tick.style.transform = `rotate(${i - 135}deg) translateY(-90px)`;
+      tickContainer.appendChild(tick);
     }
 
-    db.ref("/button/status").on("value", (snapshot) => {
-      const status = snapshot.val();
-      const statusText = status ? "ĐANG NHẤN" : "KHÔNG NHẤN";
-      document.getElementById("buttonStatus").innerText = statusText;
+    // Theo dõi giá trị biến trở
+    db.ref("/pot/value").on("value", (snapshot) => {
+      const value = snapshot.val();
+      potValueText.innerText = `Giá trị: ${value}`;
+      const angle = (value / 4095) * 270 - 135;
+      needle.style.transform = `rotate(${angle}deg)`;
     });
+
+    // Theo dõi trạng thái nút nhấn
+    db.ref("/button/status").on("value", (snapshot) => {
+      const pressed = snapshot.val();
+      buttonStateText.innerText = `Trạng thái: ${pressed ? "Đã nhấn" : "Chưa nhấn"}`;
+    });
+
+    // Theo dõi trạng thái LED
+    db.ref("/led/status").on("value", (snapshot) => {
+      const isOn = snapshot.val();
+      ledToggleBtn.innerText = isOn ? "Tắt LED" : "Bật LED";
+    });
+
+    // Xử lý khi nhấn nút điều khiển LED
+    ledToggleBtn.onclick = () => {
+      db.ref("/led/status").get().then((snapshot) => {
+        const current = snapshot.val();
+        db.ref("/led/status").set(!current);
+      });
+    };
   </script>
 </body>
 </html>
