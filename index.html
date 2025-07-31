@@ -1,29 +1,100 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-  <title>ESP32 Control Panel</title>
+  <meta charset="UTF-8">
+  <title>Điều khiển ESP32</title>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f4f8;
+      text-align: center;
+      padding: 40px;
+    }
+
+    h2 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+
+    .btn {
+      padding: 15px 30px;
+      margin: 10px;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .btn-on {
+      background-color: #4CAF50;
+      color: white;
+    }
+
+    .btn-on:hover {
+      background-color: #45a049;
+    }
+
+    .btn-off {
+      background-color: #f44336;
+      color: white;
+    }
+
+    .btn-off:hover {
+      background-color: #da190b;
+    }
+
+    .status-box {
+      margin-top: 30px;
+      padding: 20px;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      display: inline-block;
+    }
+
+    .status-label {
+      font-size: 20px;
+      color: #555;
+    }
+
+    .status-value {
+      font-size: 24px;
+      font-weight: bold;
+      margin-top: 10px;
+      color: #2196F3;
+    }
+
+    @media (max-width: 600px) {
+      .btn {
+        width: 80%;
+        font-size: 16px;
+      }
+    }
+  </style>
 </head>
 <body>
-  <h2>Điều khiển ESP32</h2>
+  <h2>🔧 Điều khiển ESP32 qua Firebase</h2>
 
-  <button onclick="setLED(true)">BẬT LED</button>
-  <button onclick="setLED(false)">TẮT LED</button>
+  <button class="btn btn-on" onclick="setLED(true)">💡 BẬT LED</button>
+  <button class="btn btn-off" onclick="setLED(false)">💤 TẮT LED</button>
 
-  <h3>Trạng thái nút nhấn trên ESP32:</h3>
-  <p id="buttonStatus">Đang tải...</p>
+  <div class="status-box">
+    <div class="status-label">📲 Trạng thái nút nhấn trên ESP32:</div>
+    <div id="buttonStatus" class="status-value">Đang tải...</div>
+  </div>
 
   <script>
     const firebaseConfig = {
-  apiKey: "AIzaSyBQ7N7ph5gmjzjLg00KEVCkyw171w6RG6E",
-  authDomain: "esp32-firebase-df4a5.firebaseapp.com",
-  databaseURL: "https://esp32-firebase-df4a5-default-rtdb.firebaseio.com",
-  projectId: "esp32-firebase-df4a5",
-  storageBucket: "esp32-firebase-df4a5.firebasestorage.app",
-  messagingSenderId: "951413630843",
-  appId: "1:951413630843:web:3e9a2a87e6061b1779ffde",
-  measurementId: "G-EX8TDX8Z7K"
+      apiKey: "AIzaSyBQ7N7ph5gmjzjLg00KEVCkyw171w6RG6E",
+      authDomain: "esp32-firebase-df4a5.firebaseapp.com",
+      databaseURL: "https://esp32-firebase-df4a5-default-rtdb.firebaseio.com",
+      projectId: "esp32-firebase-df4a5",
+      storageBucket: "esp32-firebase-df4a5.appspot.com",
+      messagingSenderId: "1234567890",
+      appId: "1:1234567890:web:abcdef123456"
     };
 
     firebase.initializeApp(firebaseConfig);
@@ -33,10 +104,10 @@
       db.ref("/led/status").set(state);
     }
 
-    // Theo dõi trạng thái nút nhấn
     db.ref("/button/status").on("value", (snapshot) => {
       const status = snapshot.val();
-      document.getElementById("buttonStatus").innerText = status ? "ĐANG NHẤN" : "KHÔNG NHẤN";
+      const statusText = status ? "ĐANG NHẤN" : "KHÔNG NHẤN";
+      document.getElementById("buttonStatus").innerText = statusText;
     });
   </script>
 </body>
