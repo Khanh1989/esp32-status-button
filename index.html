@@ -1,126 +1,43 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Điều khiển ESP32 qua Firebase</title>
-  <link rel="icon" href="favicon.png">
-  <style>
-    body {
-      font-family: sans-serif;
-      background-color: #f0f0f0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    #container {
-      background-color: white;
-      padding: 40px;
-      border-radius: 15px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-      text-align: center;
-    }
-    h1 {
-      color: #333;
-      margin-bottom: 20px;
-    }
-    #button-status {
-      font-size: 2em;
-      font-weight: bold;
-      padding: 20px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-      transition: all 0.3s ease;
-    }
-    .status-on {
-      background-color: #28a745;
-      color: white;
-    }
-    .status-off {
-      background-color: #dc3545;
-      color: white;
-    }
-    button {
-      font-size: 18px;
-      padding: 10px 20px;
-      margin: 10px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      background-color: #007bff;
-      color: white;
-    }
-    button.off {
-      background-color: #6c757d;
-    }
-    #last-updated {
-      margin-top: 10px;
-      font-size: 14px;
-      color: #555;
-    }
-  </style>
+  <title>ESP32 Control Panel</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
+  <h2>Điều khiển ESP32</h2>
 
-  <div id="container">
-    <h1>Trạng thái nút ấn ESP32</h1>
-    <div id="button-status" class="status-off">ĐANG TẮT</div>
-    <button onclick="setStatus(true)">BẬT</button>
-    <button class="off" onclick="setStatus(false)">TẮT</button>
-    <div id="last-updated">Cập nhật lần cuối: --</div>
-  </div>
+  <button onclick="setLED(true)">BẬT LED</button>
+  <button onclick="setLED(false)">TẮT LED</button>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <h3>Trạng thái nút nhấn trên ESP32:</h3>
+  <p id="buttonStatus">Đang tải...</p>
 
   <script>
-    // 🔧 Thay bằng cấu hình Firebase thật của bạn
     const firebaseConfig = {
-      apiKey: "AIzaSyBQ7N7ph5gmjzjLg00KEVCkyw171w6RG6E",
-      authDomain: "esp32-firebase-df4a5.firebaseapp.com",
-      databaseURL: "https://esp32-firebase-df4a5-default-rtdb.firebaseio.com",
-      projectId: "esp32-firebase-df4a5",
-      storageBucket: "esp32-firebase-df4a5.appspot.com",
-      messagingSenderId: "951413630843",
-      appId: "1:951413630843:web:3e9a2a87e6061b1779ffde",
-      measurementId: "G-EX8TDX8Z7K"
+  apiKey: "AIzaSyBQ7N7ph5gmjzjLg00KEVCkyw171w6RG6E",
+  authDomain: "esp32-firebase-df4a5.firebaseapp.com",
+  databaseURL: "https://esp32-firebase-df4a5-default-rtdb.firebaseio.com",
+  projectId: "esp32-firebase-df4a5",
+  storageBucket: "esp32-firebase-df4a5.firebasestorage.app",
+  messagingSenderId: "951413630843",
+  appId: "1:951413630843:web:3e9a2a87e6061b1779ffde",
+  measurementId: "G-EX8TDX8Z7K"
     };
 
-    // Khởi tạo Firebase
     firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
+    const db = firebase.database();
 
-    const statusDiv = document.getElementById('button-status');
-    const lastUpdatedDiv = document.getElementById('last-updated');
-
-    // Lắng nghe trạng thái từ ESP32
-    const buttonStatusRef = database.ref('/button/status');
-    buttonStatusRef.on('value', (snapshot) => {
-      const status = snapshot.val();
-      const now = new Date().toLocaleTimeString();
-
-      if (status === true) {
-        statusDiv.textContent = 'ĐANG BẬT';
-        statusDiv.classList.remove('status-off');
-        statusDiv.classList.add('status-on');
-      } else {
-        statusDiv.textContent = 'ĐANG TẮT';
-        statusDiv.classList.remove('status-on');
-        statusDiv.classList.add('status-off');
-      }
-
-      lastUpdatedDiv.textContent = `Cập nhật lần cuối: ${now}`;
-    });
-
-    // Gửi lệnh điều khiển từ web xuống Firebase
-    function setStatus(value) {
-      database.ref('/button/status').set(value)
-        .then(() => console.log("Đã gửi lệnh:", value))
-        .catch((error) => console.error("Lỗi gửi lệnh:", error));
+    function setLED(state) {
+      db.ref("/led/status").set(state);
     }
-  </script>
 
+    // Theo dõi trạng thái nút nhấn
+    db.ref("/button/status").on("value", (snapshot) => {
+      const status = snapshot.val();
+      document.getElementById("buttonStatus").innerText = status ? "ĐANG NHẤN" : "KHÔNG NHẤN";
+    });
+  </script>
 </body>
 </html>
