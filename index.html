@@ -1,68 +1,126 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 Button Status</title>
-    <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f0f0f0; }
-        #status-container { text-align: center; padding: 40px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); background-color: white; }
-        h1 { color: #333; }
-        #button-status { font-size: 2em; font-weight: bold; padding: 20px; border-radius: 10px; transition: all 0.3s ease; }
-        .status-on { color: white; background-color: #28a745; /* Green */ }
-        .status-off { color: white; background-color: #dc3545; /* Red */ }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Điều khiển ESP32 qua Firebase</title>
+  <link rel="icon" href="favicon.png">
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f0f0f0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    #container {
+      background-color: white;
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+    #button-status {
+      font-size: 2em;
+      font-weight: bold;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      transition: all 0.3s ease;
+    }
+    .status-on {
+      background-color: #28a745;
+      color: white;
+    }
+    .status-off {
+      background-color: #dc3545;
+      color: white;
+    }
+    button {
+      font-size: 18px;
+      padding: 10px 20px;
+      margin: 10px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background-color: #007bff;
+      color: white;
+    }
+    button.off {
+      background-color: #6c757d;
+    }
+    #last-updated {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #555;
+    }
+  </style>
 </head>
 <body>
 
-    <div id="status-container">
-        <h1>Trạng thái nút ấn ESP32</h1>
-        <div id="button-status" class="status-off">ĐANG TẮT</div>
-    </div>
+  <div id="container">
+    <h1>Trạng thái nút ấn ESP32</h1>
+    <div id="button-status" class="status-off">ĐANG TẮT</div>
+    <button onclick="setStatus(true)">BẬT</button>
+    <button class="off" onclick="setStatus(false)">TẮT</button>
+    <div id="last-updated">Cập nhật lần cuối: --</div>
+  </div>
 
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
-    <script>
-        // --- THAY THẾ BẰNG CẤU HÌNH FIREBASE CỦA BẠN ---
-        const firebaseConfig = {
-  	apiKey: "AIzaSyBQ7N7ph5gmjzjLg00KEVCkyw171w6RG6E",
-  	authDomain: "esp32-firebase-df4a5.firebaseapp.com",
-  	databaseURL: "https://esp32-firebase-df4a5-default-rtdb.firebaseio.com",
-  	projectId: "esp32-firebase-df4a5",
-  	storageBucket: "esp32-firebase-df4a5.appspot.com",
-  	messagingSenderId: "951413630843",
-  	appId: "1:951413630843:web:3e9a2a87e6061b1779ffde",
-  	measurementId: "G-EX8TDX8Z7K"
-};
-        // ---------------------------------------------------
+  <script>
+    // 🔧 Thay bằng cấu hình Firebase thật của bạn
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQ7N7ph5gmjzjLg00KEVCkyw171w6RG6E",
+      authDomain: "esp32-firebase-df4a5.firebaseapp.com",
+      databaseURL: "https://esp32-firebase-df4a5-default-rtdb.firebaseio.com",
+      projectId: "esp32-firebase-df4a5",
+      storageBucket: "esp32-firebase-df4a5.appspot.com",
+      messagingSenderId: "951413630843",
+      appId: "1:951413630843:web:3e9a2a87e6061b1779ffde",
+      measurementId: "G-EX8TDX8Z7K"
+    };
 
-        // Khởi tạo Firebase
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+    // Khởi tạo Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
 
-        // Lấy tham chiếu đến phần tử HTML
-        const statusDiv = document.getElementById('button-status');
+    const statusDiv = document.getElementById('button-status');
+    const lastUpdatedDiv = document.getElementById('last-updated');
 
-        // Lấy tham chiếu đến đường dẫn dữ liệu trên Firebase
-        const buttonStatusRef = database.ref('/button/status');
+    // Lắng nghe trạng thái từ ESP32
+    const buttonStatusRef = database.ref('/button/status');
+    buttonStatusRef.on('value', (snapshot) => {
+      const status = snapshot.val();
+      const now = new Date().toLocaleTimeString();
 
-        // Lắng nghe sự thay đổi dữ liệu tại đường dẫn đó
-        buttonStatusRef.on('value', (snapshot) => {
-            const status = snapshot.val();
-            console.log("New status:", status);
+      if (status === true) {
+        statusDiv.textContent = 'ĐANG BẬT';
+        statusDiv.classList.remove('status-off');
+        statusDiv.classList.add('status-on');
+      } else {
+        statusDiv.textContent = 'ĐANG TẮT';
+        statusDiv.classList.remove('status-on');
+        statusDiv.classList.add('status-off');
+      }
 
-            if (status) { // Trạng thái là true (đang nhấn)
-                statusDiv.textContent = 'ĐANG BẬT';
-                statusDiv.classList.remove('status-off');
-                statusDiv.classList.add('status-on');
-            } else { // Trạng thái là false (đã nhả)
-                statusDiv.textContent = 'ĐANG TẮT';
-                statusDiv.classList.remove('status-on');
-                statusDiv.classList.add('status-off');
-            }
-        });
-    </script>
+      lastUpdatedDiv.textContent = `Cập nhật lần cuối: ${now}`;
+    });
+
+    // Gửi lệnh điều khiển từ web xuống Firebase
+    function setStatus(value) {
+      database.ref('/button/status').set(value)
+        .then(() => console.log("Đã gửi lệnh:", value))
+        .catch((error) => console.error("Lỗi gửi lệnh:", error));
+    }
+  </script>
 
 </body>
 </html>
