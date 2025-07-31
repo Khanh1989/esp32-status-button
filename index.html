@@ -103,9 +103,15 @@
       background: #0056b3;
     }
 
-    canvas {
-      max-width: 100%;
+    .chart-container {
+      max-width: 700px;
+      height: 300px;
       margin: auto;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
     }
 
     @media (max-width: 600px) {
@@ -120,7 +126,9 @@
   <h2>📊 Dashboard ESP32</h2>
 
   <!-- Biểu đồ cột -->
-  <canvas id="barChart" width="400" height="200"></canvas>
+  <div class="chart-container">
+    <canvas id="barChart"></canvas>
+  </div>
 
   <div class="container">
     <!-- Đồng hồ -->
@@ -177,7 +185,6 @@
       const angleDeg = (i / 100) * 270 - 135;
       const angleRad = angleDeg * Math.PI / 180;
 
-      // Vạch
       const x = centerX + radius * Math.cos(angleRad);
       const y = centerY + radius * Math.sin(angleRad);
       const tick = document.createElement("div");
@@ -187,7 +194,6 @@
       tick.style.transform = `rotate(${angleDeg}deg)`;
       tickContainer.appendChild(tick);
 
-      // Nhãn
       const labelRadius = 70;
       const lx = centerX + labelRadius * Math.cos(angleRad);
       const ly = centerY + labelRadius * Math.sin(angleRad);
@@ -199,25 +205,21 @@
       labelContainer.appendChild(label);
     }
 
-    // Đồng hồ biến trở
     db.ref("/pot/value").on("value", (snapshot) => {
       const value = snapshot.val();
       potValueText.innerText = `Giá trị: ${value}`;
       const angle = (value / 4095) * 270 - 50;
       needle.style.transform = `rotate(${angle}deg)`;
 
-      // Cập nhật biểu đồ
       const percent = Math.round((value / 4095) * 100);
       updateChart(percent);
     });
 
-    // Nút nhấn
     db.ref("/button/status").on("value", (snapshot) => {
       const pressed = snapshot.val();
       buttonStateText.innerText = `Trạng thái: ${pressed ? "Đã nhấn" : "Chưa nhấn"}`;
     });
 
-    // Trạng thái LED
     db.ref("/led/status").on("value", (snapshot) => {
       const isOn = snapshot.val();
       ledToggleBtn.innerText = isOn ? "Tắt LED" : "Bật LED";
@@ -230,7 +232,6 @@
       });
     };
 
-    // Biểu đồ Chart.js
     const ctx = document.getElementById("barChart").getContext("2d");
     const chart = new Chart(ctx, {
       type: 'bar',
@@ -244,6 +245,8 @@
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
+        aspectRatio: 2.5,
         scales: {
           y: {
             beginAtZero: true,
