@@ -5,6 +5,7 @@
   <title>ESP32 Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -15,12 +16,33 @@
       padding: 20px;
       text-align: center;
     }
-
-    h2, h3 {
-      color: #333;
-      margin-bottom: 15px;
+    #loginPage {
+      max-width: 400px;
+      margin: auto;
+      padding: 30px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
-
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      padding: 10px 20px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #dashboard {
+      display: none;
+    }
+    /* Các style khác không thay đổi */
     .container {
       display: flex;
       flex-wrap: wrap;
@@ -28,7 +50,6 @@
       gap: 40px;
       margin-bottom: 40px;
     }
-
     .gauge {
       position: relative;
       width: 200px;
@@ -37,7 +58,6 @@
       border-radius: 50%;
       background: #fff;
     }
-
     .needle {
       position: absolute;
       width: 4px;
@@ -48,7 +68,6 @@
       transform-origin: bottom center;
       transition: transform 0.6s ease-in-out;
     }
-
     .center-dot {
       position: absolute;
       width: 12px;
@@ -58,7 +77,6 @@
       top: 94px;
       left: 94px;
     }
-
     .ticks, .labels {
       position: absolute;
       width: 100%;
@@ -67,7 +85,6 @@
       left: 0;
       pointer-events: none;
     }
-
     .tick {
       position: absolute;
       width: 2px;
@@ -75,87 +92,56 @@
       background: #333;
       transform-origin: center bottom;
     }
-
     .label {
       position: absolute;
       font-size: 12px;
       color: #333;
     }
-
-    #potValue, #buttonState {
-      margin-top: 10px;
-      font-size: 18px;
-      color: #555;
-    }
-
-    #ledToggleBtn {
-      margin-top: 15px;
-      padding: 10px 20px;
-      font-size: 16px;
-      background: #007bff;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-
-    #ledToggleBtn:hover {
-      background: #0056b3;
-    }
-
     .chart-container {
       max-width: 700px;
       height: 300px;
       margin: auto;
     }
-
     canvas {
       width: 100% !important;
       height: 100% !important;
     }
-
-    @media (max-width: 600px) {
-      .container {
-        flex-direction: column;
-        align-items: center;
-      }
-    }
   </style>
 </head>
 <body>
-  <h2>📊 Dashboard ESP32</h2>
-
-  <!-- Biểu đồ cột -->
-  <div class="chart-container">
-    <canvas id="barChart"></canvas>
+  <div id="loginPage">
+    <h2>Đăng nhập</h2>
+    <input type="text" id="codeInput" placeholder="Nhập mã truy cập">
+    <button onclick="login()">Vào Dashboard</button>
+    <p id="loginError" style="color:red;"></p>
   </div>
 
-  <div class="container">
-    <!-- Đồng hồ -->
-    <div>
-      <h3>🎛️ Biến trở</h3>
-      <div class="gauge">
-        <div class="ticks" id="tickContainer"></div>
-        <div class="labels" id="labelContainer"></div>
-        <div class="needle" id="needle"></div>
-        <div class="center-dot"></div>
+  <div id="dashboard">
+    <h2>📊 Dashboard ESP32</h2>
+    <div class="chart-container">
+      <canvas id="barChart"></canvas>
+    </div>
+    <div class="container">
+      <div>
+        <h3>🎛️ Biến trở</h3>
+        <div class="gauge">
+          <div class="ticks" id="tickContainer"></div>
+          <div class="labels" id="labelContainer"></div>
+          <div class="needle" id="needle"></div>
+          <div class="center-dot"></div>
+        </div>
+        <div id="potValue">Giá trị: --</div>
       </div>
-      <div id="potValue">Giá trị: --</div>
-    </div>
-
-    <!-- Nút -->
-    <div>
-      <h3>🔘 Nút nhấn</h3>
-      <div id="buttonState">Trạng thái: --</div>
-    </div>
-
-    <!-- LED -->
-    <div>
-      <h3>💡 Điều khiển LED</h3>
-      <button id="ledToggleBtn">Bật LED</button>
+      <div>
+        <h3>🔘 Nút nhấn</h3>
+        <div id="buttonState">Trạng thái: --</div>
+      </div>
+      <div>
+        <h3>💡 Điều khiển LED</h3>
+        <button id="ledToggleBtn">Bật LED</button>
+      </div>
     </div>
   </div>
-
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyBQ7N7ph5gmjzjLg00KEVCkyw171w6RG6E",
@@ -167,9 +153,20 @@
       appId: "1:951413630843:web:3e9a2a87e6061b1779ffde",
       measurementId: "G-EX8TDX8Z7K"
     };
-
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+
+    function login() {
+      const code = document.getElementById("codeInput").value;
+      db.ref("validcodes/" + code).get().then(snapshot => {
+        if (snapshot.exists()) {
+          document.getElementById("loginPage").style.display = "none";
+          document.getElementById("dashboard").style.display = "block";
+        } else {
+          document.getElementById("loginError").innerText = "Mã truy cập không hợp lệ!";
+        }
+      });
+    }
 
     const needle = document.getElementById("needle");
     const potValueText = document.getElementById("potValue");
@@ -178,15 +175,11 @@
     const tickContainer = document.getElementById("tickContainer");
     const labelContainer = document.getElementById("labelContainer");
 
-    // Vẽ vạch chia + nhãn
-    const centerX = 100, centerY = 100, radius = 90;
-
     for (let i = 0; i <= 100; i += 10) {
       const angleDeg = (i / 100) * 270 - 135;
       const angleRad = angleDeg * Math.PI / 180;
-
-      const x = centerX + radius * Math.cos(angleRad);
-      const y = centerY + radius * Math.sin(angleRad);
+      const x = 100 + 90 * Math.cos(angleRad);
+      const y = 100 + 90 * Math.sin(angleRad);
       const tick = document.createElement("div");
       tick.className = "tick";
       tick.style.left = `${x - 1}px`;
@@ -194,9 +187,8 @@
       tick.style.transform = `rotate(${angleDeg}deg)`;
       tickContainer.appendChild(tick);
 
-      const labelRadius = 70;
-      const lx = centerX + labelRadius * Math.cos(angleRad);
-      const ly = centerY + labelRadius * Math.sin(angleRad);
+      const lx = 100 + 70 * Math.cos(angleRad);
+      const ly = 100 + 70 * Math.sin(angleRad);
       const label = document.createElement("div");
       label.className = "label";
       label.innerText = `${i}`;
@@ -210,7 +202,6 @@
       potValueText.innerText = `Giá trị: ${value}`;
       const angle = (value / 4095) * 270 - 50;
       needle.style.transform = `rotate(${angle}deg)`;
-
       const percent = Math.round((value / 4095) * 100);
       updateChart(percent);
     });
@@ -226,7 +217,7 @@
     });
 
     ledToggleBtn.onclick = () => {
-      db.ref("/led/status").get().then((snapshot) => {
+      db.ref("/led/status").get().then(snapshot => {
         const current = snapshot.val();
         db.ref("/led/status").set(!current);
       });
