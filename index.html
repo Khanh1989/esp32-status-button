@@ -2,8 +2,8 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ESP32 Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -11,17 +11,17 @@
     body {
       font-family: sans-serif;
       background: #f0f4f8;
-      padding: 20px;
       margin: 0;
+      padding: 20px;
+      text-align: center;
     }
 
     h2, h3 {
-      text-align: center;
       color: #333;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
     }
 
-    .dashboard {
+    .container {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
@@ -36,7 +36,6 @@
       border: 10px solid #ddd;
       border-radius: 50%;
       background: #fff;
-      margin: auto;
     }
 
     .needle {
@@ -47,7 +46,7 @@
       top: 10px;
       left: 98px;
       transform-origin: bottom center;
-      transition: transform 0.8s ease-in-out;
+      transition: transform 0.6s ease-in-out;
     }
 
     .center-dot {
@@ -60,32 +59,37 @@
       left: 94px;
     }
 
-    .ticks {
+    .ticks, .labels {
       position: absolute;
       width: 100%;
       height: 100%;
       top: 0;
       left: 0;
+      pointer-events: none;
     }
 
     .tick {
       position: absolute;
       width: 2px;
-      height: 8px;
+      height: 10px;
       background: #333;
-      top: 50%;
-      left: 50%;
-      transform-origin: bottom center;
+      transform-origin: center bottom;
     }
 
-    .info-box {
-      font-size: 16px;
+    .label {
+      position: absolute;
+      font-size: 12px;
+      color: #333;
+    }
+
+    #potValue, #buttonState {
+      margin-top: 10px;
+      font-size: 18px;
       color: #555;
-      text-align: center;
-      margin-top: 12px;
     }
 
     #ledToggleBtn {
+      margin-top: 15px;
       padding: 10px 20px;
       font-size: 16px;
       background: #007bff;
@@ -93,7 +97,6 @@
       border: none;
       border-radius: 6px;
       cursor: pointer;
-      margin-top: 10px;
     }
 
     #ledToggleBtn:hover {
@@ -102,10 +105,11 @@
 
     canvas {
       max-width: 100%;
+      margin: auto;
     }
 
     @media (max-width: 600px) {
-      .dashboard {
+      .container {
         flex-direction: column;
         align-items: center;
       }
@@ -113,32 +117,35 @@
   </style>
 </head>
 <body>
-  <h2>🎛️ ESP32 Dashboard</h2>
+  <h2>📊 Dashboard ESP32</h2>
 
-  <div class="dashboard">
+  <!-- Biểu đồ cột -->
+  <canvas id="barChart" width="400" height="200"></canvas>
+
+  <div class="container">
+    <!-- Đồng hồ -->
     <div>
+      <h3>🎛️ Biến trở</h3>
       <div class="gauge">
         <div class="ticks" id="tickContainer"></div>
+        <div class="labels" id="labelContainer"></div>
         <div class="needle" id="needle"></div>
         <div class="center-dot"></div>
       </div>
-      <div class="info-box" id="potValue">Giá trị: --</div>
+      <div id="potValue">Giá trị: --</div>
     </div>
 
+    <!-- Nút -->
     <div>
-      <h3>🔘 Nút nhấn ESP32</h3>
-      <div class="info-box" id="buttonState">Trạng thái: --</div>
+      <h3>🔘 Nút nhấn</h3>
+      <div id="buttonState">Trạng thái: --</div>
     </div>
 
+    <!-- LED -->
     <div>
       <h3>💡 Điều khiển LED</h3>
       <button id="ledToggleBtn">Bật LED</button>
     </div>
-  </div>
-
-  <h3 style="text-align: center;">📊 Biểu đồ cột giá trị biến trở</h3>
-  <div style="text-align: center;">
-    <canvas id="potChart" width="400" height="200"></canvas>
   </div>
 
   <script>
@@ -160,75 +167,51 @@
     const potValueText = document.getElementById("potValue");
     const buttonStateText = document.getElementById("buttonState");
     const ledToggleBtn = document.getElementById("ledToggleBtn");
-
-    // Vẽ vạch chia
     const tickContainer = document.getElementById("tickContainer");
-    for (let i = 0; i <= 270; i += 10) {
+    const labelContainer = document.getElementById("labelContainer");
+
+    // Vẽ vạch chia + nhãn
+    const centerX = 100, centerY = 100, radius = 90;
+
+    for (let i = 0; i <= 100; i += 10) {
+      const angleDeg = (i / 100) * 270 - 135;
+      const angleRad = angleDeg * Math.PI / 180;
+
+      // Vạch
+      const x = centerX + radius * Math.cos(angleRad);
+      const y = centerY + radius * Math.sin(angleRad);
       const tick = document.createElement("div");
       tick.className = "tick";
-      tick.style.transform = `rotate(${i - 135}deg) translateY(-85px)`;
+      tick.style.left = `${x - 1}px`;
+      tick.style.top = `${y - 5}px`;
+      tick.style.transform = `rotate(${angleDeg}deg)`;
       tickContainer.appendChild(tick);
+
+      // Nhãn
+      const labelRadius = 70;
+      const lx = centerX + labelRadius * Math.cos(angleRad);
+      const ly = centerY + labelRadius * Math.sin(angleRad);
+      const label = document.createElement("div");
+      label.className = "label";
+      label.innerText = `${i}`;
+      label.style.left = `${lx - 8}px`;
+      label.style.top = `${ly - 8}px`;
+      labelContainer.appendChild(label);
     }
 
-    // Kim đổi màu theo giá trị
-    function getNeedleColor(value) {
-      const percent = value / 4095;
-      if (percent < 0.33) return "green";
-      else if (percent < 0.66) return "orange";
-      else return "red";
-    }
-
-    // Chart.js setup
-    const ctx = document.getElementById("potChart").getContext("2d");
-    const potChart = new Chart(ctx, {
-      type: "bar",
-      data: {
-        labels: Array(20).fill(""), // 20 điểm trống ban đầu
-        datasets: [{
-          label: "Biến trở",
-          data: [],
-          backgroundColor: "#007bff"
-        }]
-      },
-      options: {
-        animation: false,
-        scales: {
-          x: { display: false },
-          y: {
-            beginAtZero: true,
-            suggestedMax: 4095,
-            ticks: {
-              font: {
-                size: 14
-              },
-              stepSize: 500
-            }
-          }
-        },
-        plugins: {
-          legend: { display: false }
-        }
-      }
-    });
-
-    // Cập nhật kim & biểu đồ khi có dữ liệu biến trở
+    // Đồng hồ biến trở
     db.ref("/pot/value").on("value", (snapshot) => {
       const value = snapshot.val();
       potValueText.innerText = `Giá trị: ${value}`;
-
-      const angle = (value / 4095) * 270 - 135;
+      const angle = (value / 4095) * 270 - 50;
       needle.style.transform = `rotate(${angle}deg)`;
-      needle.style.backgroundColor = getNeedleColor(value);
 
-      // Thêm giá trị mới vào biểu đồ
-      const chartData = potChart.data.datasets[0].data;
-      chartData.push(value);
-      if (chartData.length > 20) chartData.shift(); // giữ 20 giá trị
-
-      potChart.update();
+      // Cập nhật biểu đồ
+      const percent = Math.round((value / 4095) * 100);
+      updateChart(percent);
     });
 
-    // Trạng thái nút nhấn
+    // Nút nhấn
     db.ref("/button/status").on("value", (snapshot) => {
       const pressed = snapshot.val();
       buttonStateText.innerText = `Trạng thái: ${pressed ? "Đã nhấn" : "Chưa nhấn"}`;
@@ -240,14 +223,47 @@
       ledToggleBtn.innerText = isOn ? "Tắt LED" : "Bật LED";
     });
 
-    // Xử lý bật/tắt LED
     ledToggleBtn.onclick = () => {
       db.ref("/led/status").get().then((snapshot) => {
         const current = snapshot.val();
         db.ref("/led/status").set(!current);
       });
     };
+
+    // Biểu đồ Chart.js
+    const ctx = document.getElementById("barChart").getContext("2d");
+    const chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['% Biến trở'],
+        datasets: [{
+          label: 'Mức phần trăm',
+          data: [0],
+          backgroundColor: ['#007bff']
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 100,
+            ticks: {
+              stepSize: 10,
+              color: '#333',
+              font: {
+                size: 14
+              }
+            }
+          }
+        }
+      }
+    });
+
+    function updateChart(percent) {
+      chart.data.datasets[0].data[0] = percent;
+      chart.update();
+    }
   </script>
 </body>
 </html>
-
